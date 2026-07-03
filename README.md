@@ -65,17 +65,6 @@ Train only the PINN:
 metrics = PhyGESS.validatePINN(model, telemetry(:, 2), telemetry(:, 4));
 ```
 
-## Build the MATLAB Toolbox File
-
-Run:
-
-```matlab
-cd("C:\DigitalTwin\PhyGESSToolbox")
-toolboxFile = buildToolbox;
-```
-
-The packaged toolbox is written to `dist/PhyGESSToolbox.mltbx`.
-
 ## Requirements
 
 - MATLAB R2024b or newer
