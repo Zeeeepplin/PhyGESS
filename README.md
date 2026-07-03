@@ -4,6 +4,7 @@ PhyGESS is short for Physics-Informed Generative Estimation for Substation
 Systems. This toolbox combines the Gaussian-Bernoulli RBM workflow from
 `GBRBM.m` with the physics-informed neural network workflow from `NewPINN.m`.
 
+The toolbox .mltbx file is located in the /dist folder
 The main entry point is:
 
 ```matlab
