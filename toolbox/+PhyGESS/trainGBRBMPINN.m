@@ -2,9 +2,10 @@ function result = trainGBRBMPINN(dataSource, varargin)
 %TRAINGBRBMPINN Train the combined GB-RBM + PINN digital twin pipeline.
 %
 %   result = PhyGESS.trainGBRBMPINN(dataSource) reads substation
-%   telemetry, trains a Gaussian-Bernoulli RBM, synthesizes additional
+%   telemetry, splits it into training and holdout sets, trains a
+%   Gaussian-Bernoulli RBM on the training split, synthesizes additional
 %   telemetry, trains a PINN on the generated data, and validates the PINN
-%   against the original telemetry.
+%   against the holdout telemetry.
 %
 %   dataSource can be a table, timetable, numeric matrix, CSV file, or Excel
 %   file. By default, table/file inputs drop the first column as a timestamp.
@@ -27,6 +28,7 @@ addParameter(p, 'GBRBMLearningRate', 0.005, @(x) isnumeric(x) && isscalar(x) && 
 addParameter(p, 'GBRBMWeightPenalty', 0.001, @(x) isnumeric(x) && isscalar(x) && x >= 0);
 addParameter(p, 'GBRBMMomentum', 0.9, @(x) isnumeric(x) && isscalar(x) && x >= 0);
 addParameter(p, 'GBRBMBurnInSteps', 30, @(x) isnumeric(x) && isscalar(x) && x >= 0);
+addParameter(p, 'HoldoutFraction', 0.2, @(x) isnumeric(x) && isscalar(x) && x > 0 && x < 1);
 addParameter(p, 'PINNEpochs', 600, @(x) isnumeric(x) && isscalar(x) && x > 0);
 addParameter(p, 'PINNLearningRate', 0.005, @(x) isnumeric(x) && isscalar(x) && x > 0);
 addParameter(p, 'PINNLayerWidth', 20, @(x) isnumeric(x) && isscalar(x) && x > 0);
@@ -47,6 +49,7 @@ opts.FirstColumnIsTime = logical(opts.FirstColumnIsTime);
 opts.InputColumn = round(opts.InputColumn);
 opts.TargetColumn = round(opts.TargetColumn);
 opts.NumSyntheticSamples = round(opts.NumSyntheticSamples);
+opts.HoldoutFraction = double(opts.HoldoutFraction);
 opts.UseDerivativePhysics = logical(opts.UseDerivativePhysics);
 opts.Verbose = logical(opts.Verbose);
 opts.ShowPINNProgress = logical(opts.ShowPINNProgress);
@@ -72,10 +75,29 @@ if opts.Verbose
     fprintf('Loaded telemetry: %d samples x %d variables.\n', size(telemetry, 1), size(telemetry, 2));
 end
 
-muData = mean(telemetry, 1);
-sigmaData = std(telemetry, 0, 1);
+numSamples = size(telemetry, 1);
+if numSamples < 2
+    error('PhyGESS:InsufficientTelemetry', 'At least two telemetry samples are required for a holdout split.');
+end
+
+numHoldout = max(1, round(opts.HoldoutFraction * numSamples));
+numHoldout = min(numHoldout, numSamples - 1);
+splitOrder = randperm(numSamples);
+holdoutIdx = splitOrder(1:numHoldout);
+trainIdx = splitOrder(numHoldout + 1:end);
+
+trainingTelemetry = telemetry(trainIdx, :);
+holdoutTelemetry = telemetry(holdoutIdx, :);
+
+if opts.Verbose
+    fprintf('Holdout split: %d training samples, %d holdout samples (%.0f%%).\n', ...
+        size(trainingTelemetry, 1), size(holdoutTelemetry, 1), opts.HoldoutFraction * 100);
+end
+
+muData = mean(trainingTelemetry, 1);
+sigmaData = std(trainingTelemetry, 0, 1);
 sigmaData(sigmaData == 0) = 1;
-normalizedTelemetry = (telemetry - muData) ./ sigmaData;
+normalizedTelemetry = (trainingTelemetry - muData) ./ sigmaData;
 
 if opts.Verbose
     fprintf('Training GB-RBM and generating %d synthetic samples.\n', opts.NumSyntheticSamples);
@@ -112,7 +134,7 @@ end
     'ShowProgress', opts.ShowPINNProgress);
 
 validation = PhyGESS.validatePINN( ...
-    pinnModel, telemetry(:, opts.InputColumn), telemetry(:, opts.TargetColumn));
+    pinnModel, holdoutTelemetry(:, opts.InputColumn), holdoutTelemetry(:, opts.TargetColumn));
 
 if opts.Verbose
     fprintf('Holdout validation | RMSE %.4f | MAE %.4f | Bias %.4f\n', ...
@@ -126,7 +148,8 @@ result.GBRBM = rbm;
 result.GBRBMTrainingInfo = rbmInfo;
 result.TelemetryMean = muData;
 result.TelemetryStd = sigmaData;
-result.RealTelemetry = telemetry;
+result.RealTelemetry = trainingTelemetry;
+result.HoldoutTelemetry = holdoutTelemetry;
 result.SyntheticTelemetry = syntheticTelemetry;
 result.SyntheticTelemetryNormalized = syntheticTelemetryNormalized;
 result.PINN = pinnModel;

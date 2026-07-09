@@ -20,7 +20,7 @@ The combined pipeline:
 3. Trains a Gaussian-Bernoulli RBM.
 4. Synthesizes additional physical telemetry.
 5. Trains a PINN on the generated current-to-temperature relationship.
-6. Validates the PINN against the original telemetry.
+6. Validates the PINN against a holdout subset of the original telemetry.
 
 ## Quick Start
 
@@ -33,6 +33,7 @@ result = PhyGESS.trainGBRBMPINN("C:\DigitalTwin\datalogsheet.xlsx", ...
     "InputColumn", 2, ...
     "TargetColumn", 4, ...
     "NumSyntheticSamples", 10000, ...
+    "HoldoutFraction", 0.2, ...
     "GBRBMEpochs", 500, ...
     "PINNEpochs", 600, ...
     "SavePath", "C:\DigitalTwin\Combined_GBRBM_PINN_Result.mat");
@@ -43,6 +44,8 @@ disp(result.Validation)
 `InputColumn` and `TargetColumn` are counted after the first timestamp column
 is removed. The defaults match the existing scripts: column 2 is current and
 column 4 is transformer temperature.
+
+By default, 20% of the telemetry is reserved as a holdout set for validation.
 
 ## Separate Components
 
