@@ -1,10 +1,11 @@
 %% Train a combined GB-RBM + PINN substation digital twin
-% Run this example from a folder containing datalogsheet.xlsx, or replace
-% dataFile with the full path to your telemetry workbook.
+% The example expects datalogsheet.xlsx to live at the repository root.
 
-dataFile = fullfile(pwd, 'datalogsheet.xlsx');
+scriptDir = fileparts(mfilename('fullpath'));
+repoRoot = fileparts(scriptDir);
+dataFile = fullfile(repoRoot, 'datalogsheet.xlsx');
 if ~isfile(dataFile)
-    error('Example data file not found. Set dataFile to the full path of datalogsheet.xlsx.');
+    error('Example data file not found at the repository root. Set dataFile to the full path of datalogsheet.xlsx.');
 end
 
 result = PhyGESS.trainGBRBMPINN(dataFile, ...
@@ -13,7 +14,7 @@ result = PhyGESS.trainGBRBMPINN(dataFile, ...
     'NumSyntheticSamples', 5000, ...
     'GBRBMEpochs', 300, ...
     'PINNEpochs', 300, ...
-    'SavePath', fullfile(pwd, 'Combined_GBRBM_PINN_Result.mat'));
+    'SavePath', fullfile(repoRoot, 'Combined_GBRBM_PINN_Result.mat'));
 
 disp(result.Validation);
 

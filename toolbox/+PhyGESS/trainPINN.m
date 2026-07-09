@@ -164,7 +164,8 @@ targetPhysical = (prediction * scales.TargetStd) + scales.TargetMean;
 physicsTarget = (physics.K * (inputPhysical.^2)) + physics.AmbientTemperature;
 
 if physics.UseDerivativePhysics
-    dTdX = dlgradient(sum(prediction, 'all'), X, 'EnableHigherDerivatives', true);
+    dTdn = dlgradient(sum(targetPhysical, 'all'), X, 'EnableHigherDerivatives', true);
+    dTdX = dTdn ./ scales.InputStd;
     residual = (physics.ThermalTau * dTdX) + targetPhysical - physicsTarget;
 else
     residual = targetPhysical - physicsTarget;
